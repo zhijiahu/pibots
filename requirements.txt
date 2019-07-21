@@ -1,2 +1,4 @@
 imutils==0.5.2
 numpy==1.16.4
+picamera==1.13
+pyzbar==0.1.8

@@ -3,8 +3,16 @@ from imutils.video import VideoStream
 import imutils
 import time
 import cv2
+import easygopigo3 as easy
 
 from vision import QRCodeScanner
+
+
+gopigo3 = easy.EasyGoPiGo3()
+
+print("[INFO] warming up camera...")
+vs = VideoStream(usePiCamera=1).start()
+time.sleep(2.0)
 
 
 def main():
@@ -16,7 +24,13 @@ def main():
         frame = vs.read()
         frame = imutils.resize(frame, width=400)
 
-        scanner.process(frame)
+        qrcode = scanner.process(frame)
+        if qrcode == "LEFT":
+            gopigo3.left()
+        elif qrcode == "RIGHT":
+            gopigo3.right()
+        elif qrcode == "BACK":
+            gopigo3.drive_degrees(180)
 
         cv2.imshow("Camera", frame)
 
@@ -28,10 +42,6 @@ def main():
 
 if __name__ == "__main__":
     try:
-        print("[INFO] warming up camera...")
-        vs = VideoStream(usePiCamera=0).start()
-        time.sleep(2.0)
-
         main()
     except IOError as error:
         # if the GoPiGo3 is not reachable
@@ -43,5 +53,6 @@ if __name__ == "__main__":
         print("[INFO] cleaning up...")
         cv2.destroyAllWindows()
         vs.stop()
+        gopigo3.stop()
 
     exit(0)
