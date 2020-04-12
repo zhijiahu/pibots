@@ -1,2 +1,0 @@
-
-from .qrcode import QRCodeScanner

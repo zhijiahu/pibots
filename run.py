@@ -15,12 +15,15 @@ from flask import Response
 from flask import Flask
 from flask import render_template
 
-from vision import QRCodeScanner
-from vision.objcenter import ObjCenter
+from sensors import QRCodeScanner
+from sensors import ObjCenter
+from sensors import RPLidarSensor
+from sensors import LineTracker
+
 
 # set the max wheel speed constant which should be tuned based on
 # your driving surface and available battery voltage
-WHEEL_SPEED_CONSTANT = 30
+WHEEL_SPEED_CONSTANT = 70
 
 # initialize the output frame and a lock used to ensure thread-safe
 # exchanges of the output frames (useful for multiple browsers/tabs
@@ -45,6 +48,8 @@ def signal_handler(sig, frame):
 def scan(args, objX, objY, search, lPower, rPower, powerDuration):
     global vs, outputFrame, lock
 
+    # Debug with remote feed. WARNING: THIS TAKES UP CPU
+    # because of the lock when generating frame.
     t = threading.Thread(target=remote_feed, args=(args, ))
     t.daemon = True
     t.start()
@@ -53,9 +58,12 @@ def scan(args, objX, objY, search, lPower, rPower, powerDuration):
     vs = VideoStream(usePiCamera=1).start()
     time.sleep(2.0)
 
-    # instantiate scanners
-    obj = ObjCenter(args)
-    scanner = QRCodeScanner(args)
+    print('[INFO] starting up all sensors...')
+    sensors = [ObjCenter(args),
+               QRCodeScanner(args),
+               RPLidarSensor(args),
+               LineTracker(args)
+    ]
 
     while True:
 
@@ -64,22 +72,20 @@ def scan(args, objX, objY, search, lPower, rPower, powerDuration):
         frame = vs.read()
         frame = imutils.resize(frame, width=400)
 
-        # find the object's location
-        combined = []
-        m = obj.update(frame)
-        if m is not None:
-            combined.append(m)
+        # Get motor outputs from all sensors
+        output = []
+        for s in sensors:
+            m = s.update(frame)
+            if m is not None:
+                output.append(m)
 
-        m = scanner.update(frame)
-        if m is not None:
-            combined.append(m)
-
-        if combined:
-            multipliers = [sum(x) / len(combined) for x in zip(*combined)]
+        # Average the outputs
+        if output:
+            multipliers = [sum(x) / len(output) for x in zip(*output)]
         else:
             multipliers = None
 
-        # begin searching for the object if it is not found
+        # Begin searching if there is no output from sensors
         if multipliers == None:
             search.value = 1
             cv2.putText(
@@ -97,7 +103,9 @@ def scan(args, objX, objY, search, lPower, rPower, powerDuration):
             (lMultiplier, rMultiplier, duration) = multipliers
             lPower.value = int(WHEEL_SPEED_CONSTANT * lMultiplier)
             rPower.value = int(WHEEL_SPEED_CONSTANT * rMultiplier)
-            powerDuration.value = int(duration)
+            powerDuration.value = float(duration)
+
+            print(lPower.value, rPower.value, powerDuration.value)
 
             cv2.putText(
                 frame,
@@ -132,6 +140,9 @@ def scan(args, objX, objY, search, lPower, rPower, powerDuration):
 
     # release the file pointers
     print('[INFO] cleaning up...')
+    for s in sensors:
+        s.shutdown()
+
     vs.stop()
 
 
@@ -153,7 +164,7 @@ def go(lPower, rPower, powerDuration, search):
             gpg.set_motor_power(gpg.MOTOR_RIGHT, WHEEL_SPEED_CONSTANT)
         else:
 
-            # otherwise, we have detected the object
+            # otherwise, we have detected something
             # set the wheel speed
             gpg.set_motor_power(gpg.MOTOR_LEFT, lPower.value)
             gpg.set_motor_power(gpg.MOTOR_RIGHT, rPower.value)
@@ -245,7 +256,7 @@ if __name__ == '__main__':
         # searching for an object (i.e. spinning in place)
         search = manager.Value('i', 0)
 
-        # we have 3 independent processes
+        # we have 2 independent processes
         # 1. scan   -   searches environment and calulcates motor values
         #               based on detected object's position
         # 2. go       - drives the motors
