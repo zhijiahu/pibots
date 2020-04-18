@@ -14,11 +14,6 @@ class SensorBase:
         # successful detection made in last N frames
         self.history = deque(maxlen=args["size"])
 
-        signal.signal(signal.SIGINT, self.signal_handler)
-
-    def signal_handler(self, sig, frame):
-        self.shutdown()
-
     def update(self, frame):
         if self.update_internal(frame):
             self.history.append(1)

@@ -65,6 +65,14 @@ def scan(args, objX, objY, search, lPower, rPower, powerDuration):
                LineTracker(args)
     ]
 
+    def sensors_shutdown_handler(sig, frame):
+        print("[INFO] You pressed `ctrl + c`! Shutting down sensors...")
+        for s in sensors:
+            s.shutdown()
+
+    # signal trap to handle keyboard interrupt
+    signal.signal(signal.SIGINT, sensors_shutdown_handler)
+
     while True:
 
         # grab the frame from the threaded video stream and resize it to
@@ -191,26 +199,18 @@ def generate():
     # grab global references to the output frame and lock variables
     global outputFrame, lock
 
-    # loop over frames from the output stream
-    while True:
-
-        # wait until the lock is acquired
-        with lock:
-            # check if the output frame is available, otherwise skip
-            # the iteration of the loop
-            if outputFrame is None:
-                continue
-
+    # wait until the lock is acquired
+    with lock:
+        # check if the output frame is available, otherwise skip
+        # the iteration of the loop
+        if outputFrame is not None:
             # encode the frame in JPEG format
             (flag, encodedImage) = cv2.imencode('.jpg', outputFrame)
 
             # ensure the frame was successfully encoded
-            if not flag:
-                continue
-
-            # yield the output frame in the byte format
-            yield(b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + bytearray(encodedImage) + b'\r\n')
-
+            if flag:
+                # return the output frame in the byte format
+                return(b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + bytearray(encodedImage) + b'\r\n')
 
 @app.route('/video_feed')
 def video_feed():
@@ -239,7 +239,7 @@ if __name__ == '__main__':
                         help='path to Caffe pre-trained model')
         ap.add_argument('-c', '--confidence', type=float, default=0.4,
                         help='minimum probability to filter weak detections')
-        ap.add_argument('-s', '--size', type=int, default=10,
+        ap.add_argument('-s', '--size', type=int, default=5,
                         help='size of the deque')
         args = manager.dict(vars(ap.parse_args()))
 

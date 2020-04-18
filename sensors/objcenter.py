@@ -105,6 +105,7 @@ class ObjCenter(SensorBase):
                     self.r_multiplier = 0.9
 
                 self.motor_duration = 0
+                print("[INFO] Detected object")
 
                 return True
 

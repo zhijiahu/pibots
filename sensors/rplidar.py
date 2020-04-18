@@ -3,6 +3,7 @@ import os
 from math import cos, sin, pi, floor
 from adafruit_rplidar import RPLidar
 import threading
+import random
 
 from .sensorbase import SensorBase
 
@@ -13,11 +14,10 @@ class RPLidarSensor(SensorBase):
         super(RPLidarSensor, self).__init__(args)
 
         self.lidar = RPLidar(None, '/dev/ttyUSB0')
-        self.lidar.stop()
-
         self.scan_data = [0]*360
 
         print(self.lidar.info)
+        print(self.lidar.health)
 
         t = threading.Thread(target=self._read_scans, args=())
         t.daemon = True
@@ -28,18 +28,18 @@ class RPLidarSensor(SensorBase):
             for (_, angle, distance) in scan:
                 self.scan_data[min([359, floor(angle)])] = distance
 
-
     def update_internal(self, frame):
 
+        r_multiplier = random.uniform(1.8, 3.0)
+        l_multiplier = random.uniform(1.5, 3.0)
         turn_duration = 1.0
-        turn_multiplier = 2.0
         dist_to_obstacle = 300
 
         roi = self.scan_data[135:225]
 
         if any((dist > 0 and dist < dist_to_obstacle) for dist in roi):
-            self.r_multiplier = -turn_multiplier
-            self.l_multiplier = -turn_multiplier
+            self.r_multiplier = -r_multiplier
+            self.l_multiplier = -l_multiplier
             self.motor_duration = turn_duration
             print("[INFO] Avoiding obstacle!")
             return True

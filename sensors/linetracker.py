@@ -23,7 +23,7 @@ class LineTracker(SensorBase):
         # assuming the camera is aimed at a 45-deg down angle and
         # mounted on the top platform of the GoPiGo3, extract only the
         # region right in front of the camera
-        startY = int(H * 0.60)
+        startY = int(H * 0.80)
         endY = H
         startX = int(W * 0.20)
         endX = int(W * 0.80)
