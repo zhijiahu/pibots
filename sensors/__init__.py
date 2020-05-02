@@ -5,3 +5,4 @@ from .qrcode import QRCodeScanner
 from .objcenter import ObjCenter
 from .rplidar import RPLidarSensor
 from .linetracker import LineTracker
+from .imagegatherer import ImageGatherer

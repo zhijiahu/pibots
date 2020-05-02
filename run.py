@@ -19,6 +19,7 @@ from sensors import QRCodeScanner
 from sensors import ObjCenter
 from sensors import RPLidarSensor
 from sensors import LineTracker
+from sensors import ImageGatherer
 
 
 # set the max wheel speed constant which should be tuned based on
@@ -48,8 +49,7 @@ def signal_handler(sig, frame):
 def scan(args, objX, objY, search, lPower, rPower, powerDuration):
     global vs, outputFrame, lock
 
-    # Debug with remote feed. WARNING: THIS TAKES UP CPU
-    # because of the lock when generating frame.
+    # Debug with remote feed.
     t = threading.Thread(target=remote_feed, args=(args, ))
     t.daemon = True
     t.start()
@@ -59,11 +59,15 @@ def scan(args, objX, objY, search, lPower, rPower, powerDuration):
     time.sleep(2.0)
 
     print('[INFO] starting up all sensors...')
-    sensors = [ObjCenter(args),
-               QRCodeScanner(args),
-               RPLidarSensor(args),
-               LineTracker(args)
-    ]
+
+    if args['imageoutput']:
+        sensors = [ImageGatherer(args)]
+    else:
+        sensors = [ObjCenter(args),
+                   QRCodeScanner(args),
+                   RPLidarSensor(args),
+                   LineTracker(args)
+        ]
 
     def sensors_shutdown_handler(sig, frame):
         print("[INFO] You pressed `ctrl + c`! Shutting down sensors...")
@@ -176,8 +180,8 @@ def go(lPower, rPower, powerDuration, search):
             # set the wheel speed
             gpg.set_motor_power(gpg.MOTOR_LEFT, lPower.value)
             gpg.set_motor_power(gpg.MOTOR_RIGHT, rPower.value)
-            if powerDuration.value > 0:
-                time.sleep(powerDuration.value)
+            # if powerDuration.value > 0:
+            #     time.sleep(powerDuration.value)
 
     # reset the GoPiGo3
     gpg.reset_all()
@@ -241,6 +245,8 @@ if __name__ == '__main__':
                         help='minimum probability to filter weak detections')
         ap.add_argument('-s', '--size', type=int, default=5,
                         help='size of the deque')
+        ap.add_argument('-g', '--imageoutput', type=str, default=None,
+                        help='Directory where robot will capture and dump images into')
         args = manager.dict(vars(ap.parse_args()))
 
         # set integer values for the object's (x, y)-coordinates

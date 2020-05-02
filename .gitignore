@@ -71,3 +71,8 @@ datasets/
 */test_images/*
 *.zip
 *~
+*#
+*.weights
+*.mp3
+dataset/
+
