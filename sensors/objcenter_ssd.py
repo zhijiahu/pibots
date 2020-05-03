@@ -8,9 +8,9 @@ import cv2
 from .sensorbase import SensorBase
 
 
-class ObjCenter(SensorBase):
+class ObjCenterSSD(SensorBase):
     def __init__(self, args):
-        super(ObjCenter, self).__init__(args)
+        super(ObjCenterSSD, self).__init__(args)
 
         # set instance variables
         self.objType = args["object"]

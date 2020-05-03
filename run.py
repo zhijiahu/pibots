@@ -15,8 +15,10 @@ from flask import Response
 from flask import Flask
 from flask import render_template
 
+from utils import Conf
 from sensors import QRCodeScanner
-from sensors import ObjCenter
+from sensors import ObjCenterSSD
+from sensors import ObjCenterYolo
 from sensors import RPLidarSensor
 from sensors import LineTracker
 from sensors import ImageGatherer
@@ -46,11 +48,11 @@ def signal_handler(sig, frame):
     sys.exit()
 
 
-def scan(args, objX, objY, search, lPower, rPower, powerDuration):
+def scan(conf, objX, objY, search, lPower, rPower, powerDuration):
     global vs, outputFrame, lock
 
     # Debug with remote feed.
-    t = threading.Thread(target=remote_feed, args=(args, ))
+    t = threading.Thread(target=remote_feed, args=(conf, ))
     t.daemon = True
     t.start()
 
@@ -60,13 +62,13 @@ def scan(args, objX, objY, search, lPower, rPower, powerDuration):
 
     print('[INFO] starting up all sensors...')
 
-    if args['imageoutput']:
-        sensors = [ImageGatherer(args)]
+    if conf['imageoutput']:
+        sensors = [ImageGatherer(conf)]
     else:
-        sensors = [ObjCenter(args),
-                   QRCodeScanner(args),
-                   RPLidarSensor(args),
-                   LineTracker(args)
+        sensors = [ObjCenterYolo(conf),
+                   QRCodeScanner(conf),
+                   RPLidarSensor(conf),
+                   LineTracker(conf)
         ]
 
     def sensors_shutdown_handler(sig, frame):
@@ -187,9 +189,9 @@ def go(lPower, rPower, powerDuration, search):
     gpg.reset_all()
 
 
-def remote_feed(args):
+def remote_feed(conf):
     # start the flask app that listens for remote commands
-    app.run(host=args['ip'], port=args['port'], debug=True,
+    app.run(host=conf['ip'], port=conf['port'], debug=True,
             threaded=True, use_reloader=False)
 
 
@@ -231,23 +233,10 @@ if __name__ == '__main__':
         # construct the argument parser and parse the arguments
         ap = argparse.ArgumentParser()
 
-        ap.add_argument('--ip', type=str, default='0.0.0.0',
-                        help='ip address of the device')
-        ap.add_argument('--port', type=int, default=5000,
-                        help='ephemeral port number of the server (1024 to 65535)')
-        ap.add_argument('-o', '--object', required=True,
-                        help='type of object the gopigo should drive to')
-        ap.add_argument('-p', '--prototxt',
-                        help="path to Caffe 'deploy' prototxt file")
-        ap.add_argument('-m', '--model',
-                        help='path to Caffe pre-trained model')
-        ap.add_argument('-c', '--confidence', type=float, default=0.4,
-                        help='minimum probability to filter weak detections')
-        ap.add_argument('-s', '--size', type=int, default=5,
-                        help='size of the deque')
-        ap.add_argument('-g', '--imageoutput', type=str, default=None,
-                        help='Directory where robot will capture and dump images into')
+        ap.add_argument("-c", "--conf", required=True,
+                        help="Path to the input configuration file")
         args = manager.dict(vars(ap.parse_args()))
+        conf = Conf(args["conf"])
 
         # set integer values for the object's (x, y)-coordinates
         objX = manager.Value('i', 0)
@@ -267,7 +256,7 @@ if __name__ == '__main__':
         #               based on detected object's position
         # 2. go       - drives the motors
         objectProcess = Process(target=scan, args=(
-            args,
+            conf,
             objX,
             objY,
             search,
