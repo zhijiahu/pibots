@@ -57,4 +57,8 @@ class RPLidarSensor(SensorBase):
     def shutdown(self):
         print("[INFO] Stopping rplidar")
         self.lidar.stop()
+        self.lidar.stop_motor()
         self.lidar.disconnect()
+
+    def stop_motor(self):
+        self.lidar.stop_motor()

@@ -11,6 +11,8 @@ import argparse
 import cv2
 import easygopigo3
 import sys
+import asyncio
+import imagezmq
 from flask import Response
 from flask import Flask
 from flask import render_template
@@ -34,6 +36,8 @@ WHEEL_SPEED_CONSTANT = 70
 outputFrame = None
 lock = threading.Lock()
 
+startNavigation = None
+
 # initialize a flask object
 app = Flask(__name__)
 
@@ -49,12 +53,31 @@ def signal_handler(sig, frame):
 
 
 def scan(conf, objX, objY, search, lPower, rPower, powerDuration):
-    global vs, outputFrame, lock
-
     # Debug with remote feed.
     t = threading.Thread(target=remote_feed, args=(conf, ))
     t.daemon = True
     t.start()
+
+    asyncio.run(scan_async())
+
+
+async def scan_async():
+    await asyncio.gather(listen(), navigate())
+
+async def listen():
+    global startNavigation
+
+    image_hub = imagezmq.ImageHub(open_port='tcp://172.16.0.100:5566', REQ_REP=False)
+
+    while True:
+        await asyncio.sleep(0)
+
+        rpi_name, frame = image_hub.recv_image()
+        if startNavigation is None:
+            startNavigation = True
+
+async def navigate():
+    global outputFrame, lock, startNavigation
 
     print('[INFO] warming up camera...')
     vs = VideoStream(usePiCamera=1).start()
@@ -80,6 +103,10 @@ def scan(conf, objX, objY, search, lPower, rPower, powerDuration):
     signal.signal(signal.SIGINT, sensors_shutdown_handler)
 
     while True:
+        if not startNavigation:
+            print("[INFO] Navigation is stopped...")
+            await asyncio.sleep(0)
+            continue
 
         # grab the frame from the threaded video stream and resize it to
         # have a maximum width of 400 pixels
@@ -118,6 +145,10 @@ def scan(conf, objX, objY, search, lPower, rPower, powerDuration):
             lPower.value = int(WHEEL_SPEED_CONSTANT * lMultiplier)
             rPower.value = int(WHEEL_SPEED_CONSTANT * rMultiplier)
             powerDuration.value = float(duration)
+
+            if lPower.value == 0 and rPower.value == 0:
+                print("Stopping... Waiting for next detected frame")
+                startNavigation = False
 
             print(lPower.value, rPower.value, powerDuration.value)
 
@@ -225,6 +256,20 @@ def video_feed():
     return Response(generate(),
                     mimetype='multipart/x-mixed-replace; boundary=frame'
                     )
+
+@app.route('/stop')
+def stop_robot():
+    global startNavigation
+    startNavigation = False
+
+    return Response()
+
+@app.route('/start')
+def start_robot():
+    global startNavigation
+    startNavigation = True
+
+    return Response()
 
 if __name__ == '__main__':
     # start a manager for managing process-safe variables

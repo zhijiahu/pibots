@@ -1,6 +1,7 @@
 <html>
   <head>
     <title>Pi Video Surveillance</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
   </head>
   <body>
     <h1>Pi Video Surveillance</h1>
@@ -11,6 +12,13 @@
     <div>
       <button onclick="reload()">Refresh</button>
     </div>
+    <br/>
+    <div>
+      <button id="stopBtn">Stop</button>
+      <br/>
+      <button id="startBtn">Start</button>
+    </div>
+    
     <script type="text/javascript">
 
       function reload()
@@ -18,6 +26,13 @@
 	  img = document.getElementById("feed");
 	  img.src="{{ url_for('video_feed') }}?r=" + Math.random();
       }
+
+      $("#stopBtn").click(function(){
+	  $.ajax({url: window.location.href + "stop"});
+      });
+      $("#startBtn").click(function(){
+	  $.ajax({url: window.location.href + "start"});
+      });
 
     </script>
 
