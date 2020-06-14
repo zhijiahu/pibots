@@ -1,0 +1,17 @@
+{
+    "lang": "en",
+	  "accent": "us",
+    "msg_body": "di... di... di... di... di... di... di... di...  detected something at the main door",
+    "msg_path": "messages",
+    "yolo_path": "yolo-coco",
+    "classes": [
+	      "person"
+    ],
+    "confidence": 0.5,
+    "threshold": 0.3,
+
+    "detector": "haarcascade",
+    "haarPath": "cascades/haarcascade_frontalface_default.xml",
+
+    "gopigo_ip": "172.16.0.115"
+}
