@@ -15,15 +15,59 @@ spec:
     spec:
       containers:
         - name: ghost
-          image: arm32v7/ghost
+          image: zhijia/ghost-s3-for-pi
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 300m
+              memory: 512Mi
           env:
             - name: NODE_ENV
               value: production
+            - name: database__client
+              value: mysql
+            - name: database__connection__host
+              value: mysql
+            - name: database__connection__port
+              value: "3306"
+            - name: database__connection__user
+              value: root
+            - name: database__connection__password
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-pass
+                  key: password
+            - name: database__connection__database
+              value: ghost-db
+            - name: url
+              value: https://blog.zhijiahu.sg/
+            - name: storage__active
+              value: s3
+            - name: storage__s3__accessKeyId
+              valueFrom:
+                secretKeyRef:
+                  name: ghost-s3-secret
+                  key: awsaccesskeyid
+            - name: storage__s3__secretAccessKey
+              valueFrom:
+                secretKeyRef:
+                  name: ghost-s3-secret
+                  key: awssecretaccesskey
+            - name: storage__s3__region
+              value: ap-southeast-1
+            - name: storage__s3__bucket
+              value: ghost-zhijiahu
+
           livenessProbe:
             httpGet:
               path: /
               port: 2368
               scheme: HTTP
+              httpHeaders:
+                - name: X-Forwarded-Proto
+                  value: https
             initialDelaySeconds: 10
             periodSeconds: 30
             timeoutSeconds: 1
